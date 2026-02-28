@@ -1,0 +1,60 @@
+{
+  "active": {
+    "federal": "IRS-2026.1",
+    "state": "ND-2026.2",
+    "localSalesTax": "ND-LOCAL-2026-01-01"
+  },
+  "activeByTaxYear": {
+    "2026": {
+      "federal": "IRS-2026.1",
+      "state": "ND-2026.2",
+      "localSalesTax": "ND-LOCAL-2026-01-01"
+    }
+  },
+  "versions": [
+    {
+      "id": "IRS-2026.1",
+      "jurisdiction": "IRS",
+      "path": "rulesets/IRS/2026.1.json",
+      "effectiveFrom": "2026-01-01",
+      "status": "validated",
+      "approvedBy": "internal-tax-review",
+      "approvedAt": "2026-02-28T00:00:00.000Z",
+      "sourceHash": "irs-rev-proc-2025-32-and-irs-brackets-2026",
+      "validatedAt": "2026-02-28T00:00:00.000Z"
+    },
+    {
+      "id": "ND-2026.1",
+      "jurisdiction": "ND",
+      "path": "rulesets/ND/2026.1.json",
+      "effectiveFrom": "2026-01-01",
+      "status": "stale",
+      "approvedBy": "internal-tax-review",
+      "approvedAt": "2026-02-28T00:00:00.000Z",
+      "sourceHash": "nd-individual-income-tax-forms-page-2026-placeholder",
+      "validatedAt": "2026-02-28T00:00:00.000Z"
+    },
+    {
+      "id": "ND-2026.2",
+      "jurisdiction": "ND",
+      "path": "rulesets/ND/2026.2.json",
+      "effectiveFrom": "2026-01-01",
+      "status": "validated",
+      "approvedBy": "internal-tax-review",
+      "approvedAt": "2026-02-28T00:00:00.000Z",
+      "sourceHash": "nd-1es-2026-plus-2026-withholding-booklet-plus-2025-booklet-adjustments-reference",
+      "validatedAt": "2026-02-28T00:00:00.000Z"
+    },
+    {
+      "id": "ND-LOCAL-2026-01-01",
+      "jurisdiction": "ND_LOCAL",
+      "path": "rulesets/ND/local/2026-01-01.csv",
+      "effectiveFrom": "2026-01-01",
+      "status": "seeded",
+      "approvedBy": "internal-tax-review",
+      "approvedAt": "2026-02-28T00:00:00.000Z",
+      "sourceHash": "nd-local-sales-tax-city-county-reference",
+      "validatedAt": "2026-02-28T00:00:00.000Z"
+    }
+  ]
+}

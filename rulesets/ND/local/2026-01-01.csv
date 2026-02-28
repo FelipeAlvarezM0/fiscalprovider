@@ -1,0 +1,2 @@
+jurisdiction_type,jurisdiction_code,city,zip,state_rate,local_rate,total_rate,effective_from,source_url
+CITY,GRAND_FORKS,Grand Forks,58201,0.05,0.0225,0.0725,2026-01-01,https://www.tax.nd.gov/business/sales-use-gross-receipts-tax/local-sales-use-tax-cities-and-counties/maximum-purchases-tax-city-county

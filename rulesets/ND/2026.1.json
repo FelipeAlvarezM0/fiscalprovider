@@ -1,0 +1,30 @@
+{
+  "id": "ND-2026.1",
+  "jurisdiction": "state",
+  "stateCode": "ND",
+  "taxYear": 2026,
+  "effectiveFrom": "2026-01-01",
+  "status": "stale",
+  "source": [
+    {
+      "name": "North Dakota Office of State Tax Commissioner - Individual income tax forms and instructions",
+      "url": "https://www.tax.nd.gov/tax-forms/individual-income-tax-forms-instructions"
+    }
+  ],
+  "checksum": "nd-2026-1",
+  "rulesetSignature": "efc65764b53ae9b60d2ce5ceb727017aaed60dd89f0e6f46c86310245222fca1",
+  "validatedAt": "2026-02-28T00:00:00.000Z",
+  "changelog": [
+    "Initialized ND 2026 ruleset container with staleness support.",
+    "State computation is blocked until the exact 2026 bracket table is loaded and validated."
+  ],
+  "computable": false,
+  "staleness": {
+    "reason": "North Dakota 2026 individual income tax bracket table has not been validated into this repository yet.",
+    "action": "Load the official ND 2026 table, bump version to ND-2026.2 and recompute affected runs."
+  },
+  "fallbackPolicy": {
+    "mode": "block",
+    "impact": "high"
+  }
+}

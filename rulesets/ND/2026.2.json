@@ -1,0 +1,122 @@
+{
+  "id": "ND-2026.2",
+  "jurisdiction": "state",
+  "stateCode": "ND",
+  "taxYear": 2026,
+  "effectiveFrom": "2026-01-01",
+  "status": "validated",
+  "source": [
+    {
+      "name": "North Dakota Form ND-1ES 2026 estimated income tax worksheet",
+      "url": "local-pdf:c:/Users/felip/Downloads/ND/28709-form-nd-1es-2026.pdf"
+    },
+    {
+      "name": "North Dakota 2026 income tax withholding rates booklet",
+      "url": "local-pdf:c:/Users/felip/Downloads/2026-income-tax-withholding-rates-booklet.pdf"
+    },
+    {
+      "name": "North Dakota 2025 individual income tax booklet for adjustments and credit references",
+      "url": "local-pdf:c:/Users/felip/Downloads/ND/2025-individual-income-tax-booklet.pdf"
+    }
+  ],
+  "checksum": "nd-2026-2",
+  "validatedAt": "2026-02-28T00:00:00.000Z",
+  "changelog": [
+    "Loaded 2026 North Dakota individual income tax rate schedule from Form ND-1ES (12-2025 revision).",
+    "Corroborated annual thresholds using the 2026 withholding rates booklet.",
+    "Retained 2025 instruction booklet as temporary reference for additions, subtractions, and credits until the 2026 ND-1 instruction booklet is published."
+  ],
+  "computable": true,
+  "brackets": {
+    "SINGLE": [
+      {
+        "min": 0,
+        "max": 49575,
+        "rate": 0
+      },
+      {
+        "min": 49575,
+        "max": 250400,
+        "rate": 0.0195
+      },
+      {
+        "min": 250400,
+        "max": null,
+        "rate": 0.025
+      }
+    ],
+    "MARRIED_FILING_JOINTLY": [
+      {
+        "min": 0,
+        "max": 82800,
+        "rate": 0
+      },
+      {
+        "min": 82800,
+        "max": 304850,
+        "rate": 0.0195
+      },
+      {
+        "min": 304850,
+        "max": null,
+        "rate": 0.025
+      }
+    ],
+    "MARRIED_FILING_SEPARATELY": [
+      {
+        "min": 0,
+        "max": 41400,
+        "rate": 0
+      },
+      {
+        "min": 41400,
+        "max": 152425,
+        "rate": 0.0195
+      },
+      {
+        "min": 152425,
+        "max": null,
+        "rate": 0.025
+      }
+    ],
+    "HEAD_OF_HOUSEHOLD": [
+      {
+        "min": 0,
+        "max": 66400,
+        "rate": 0
+      },
+      {
+        "min": 66400,
+        "max": 277600,
+        "rate": 0.0195
+      },
+      {
+        "min": 277600,
+        "max": null,
+        "rate": 0.025
+      }
+    ],
+    "QUALIFYING_SURVIVING_SPOUSE": [
+      {
+        "min": 0,
+        "max": 82800,
+        "rate": 0
+      },
+      {
+        "min": 82800,
+        "max": 304850,
+        "rate": 0.0195
+      },
+      {
+        "min": 304850,
+        "max": null,
+        "rate": 0.025
+      }
+    ]
+  },
+  "fallbackPolicy": {
+    "mode": "fallback",
+    "impact": "medium"
+  },
+  "rulesetSignature": "dc42abc2520f8f3f02403924aae47347c12538c0204de883f3196433b6713c1b"
+}

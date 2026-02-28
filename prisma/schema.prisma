@@ -1,0 +1,447 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FilingStatus {
+  SINGLE
+  MARRIED_FILING_JOINTLY
+  MARRIED_FILING_SEPARATELY
+  HEAD_OF_HOUSEHOLD
+  QUALIFYING_SURVIVING_SPOUSE
+}
+
+enum IncomeType {
+  W2
+  FORM_1099_MISC
+  FORM_1099_NEC
+  BUSINESS_GROSS
+  OTHER_TAXABLE
+}
+
+enum TransactionDirection {
+  INCOME
+  EXPENSE
+}
+
+enum CategorySource {
+  RULE
+  HEURISTIC
+  ML
+  USER
+  MANUAL
+}
+
+enum DocumentStatus {
+  PENDING_UPLOAD
+  AVAILABLE
+  PROCESSING
+  EXTRACTED
+  FAILED
+}
+
+enum BatchStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ScopeStatus {
+  IN_SCOPE
+  PARTIAL
+  OUT_OF_SCOPE
+}
+
+enum SalesTaxFilingFrequency {
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+enum IdempotencyStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum PaymentKind {
+  ESTIMATED_QUARTERLY
+  EXTENSION
+  OTHER
+}
+
+model User {
+  id                 String                @id @default(uuid())
+  email              String                @unique
+  passwordHash       String
+  displayName        String?
+  mfaEnabled         Boolean               @default(false)
+  mfaSecretEncrypted String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  taxProfiles        TaxYearProfile[]
+  incomes            IncomeSource[]
+  documents          Document[]
+  transactions       Transaction[]
+  deductionItems     DeductionItem[]
+  runs               ComputationRun[]
+  auditEvents        AuditEvent[]
+  importBatches      ImportBatch[]
+  overrides          UserOverride[]
+  completeness       CompletenessReport[]
+  sessions           DeviceSession[]
+  exportJobs         ExportJob[]
+  estimatedPayments  EstimatedPayment[]
+  idempotencyRecords IdempotencyRecord[]
+}
+
+model DeviceSession {
+  id                String   @id @default(uuid())
+  userId            String
+  refreshTokenHash  String
+  deviceLabel       String?
+  userAgent         String?
+  ipAddress         String?
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+  revokedAt         DateTime?
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model TaxYearProfile {
+  id                       String       @id @default(uuid())
+  userId                   String
+  taxYear                  Int
+  filingStatus             FilingStatus?
+  dependentsCount          Int          @default(0)
+  residentState            String       @default("ND")
+  residentCity             String?
+  residentZip              String?
+  county                   String?
+  isFullYearResident       Boolean      @default(true)
+  hasNdSalesTaxNexus       Boolean      @default(false)
+  salesTaxFilingFrequency  SalesTaxFilingFrequency?
+  standardDeductionForced  Boolean?
+  itemizedDeductionAmount  Decimal?     @db.Decimal(12, 2)
+  hasForeignIncome         Boolean      @default(false)
+  hasK1                    Boolean      @default(false)
+  hasAdvancedInvestments   Boolean      @default(false)
+  hasAdvancedDepreciation  Boolean      @default(false)
+  notes                    String?
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @updatedAt
+  user                     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, taxYear])
+  @@index([taxYear])
+}
+
+model IncomeSource {
+  id                  String      @id @default(uuid())
+  userId              String
+  taxYear             Int
+  type                IncomeType
+  label               String
+  payerName           String?
+  amount              Decimal     @db.Decimal(12, 2)
+  taxWithheldFederal  Decimal?    @db.Decimal(12, 2)
+  taxWithheldState    Decimal?    @db.Decimal(12, 2)
+  taxWithheldLocal    Decimal?    @db.Decimal(12, 2)
+  taxWithheldMedicare Decimal?    @db.Decimal(12, 2)
+  taxWithheldSocialSecurity Decimal? @db.Decimal(12, 2)
+  isConfirmed         Boolean     @default(false)
+  sourceDocumentId    String?
+  metadataJson        Json?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceDocument      Document?   @relation("IncomeSourceDocument", fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([userId, taxYear])
+}
+
+model Document {
+  id                  String         @id @default(uuid())
+  userId              String
+  taxYear             Int
+  storageKey          String         @unique
+  uploadChecksum      String
+  fileName            String
+  mimeType            String
+  sizeBytes           Int
+  status              DocumentStatus @default(PENDING_UPLOAD)
+  extractedJson       Json?
+  extractedAt         DateTime?
+  extractedConfidence Decimal?       @db.Decimal(5, 2)
+  uploadConfirmedAt   DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkedTransactions  Transaction[]
+  incomes             IncomeSource[] @relation("IncomeSourceDocument")
+
+  @@index([userId, taxYear, status])
+}
+
+model Transaction {
+  id                   String                @id @default(uuid())
+  userId               String
+  taxYear              Int
+  date                 DateTime
+  amount               Decimal               @db.Decimal(12, 2)
+  merchant             String?
+  description          String
+  direction            TransactionDirection
+  categoryCode         String?
+  categoryConfidence   Decimal?              @db.Decimal(5, 2)
+  categoryReason       String?
+  categorySource       CategorySource        @default(MANUAL)
+  documentId           String?
+  importBatchId        String?
+  fingerprintId        String?
+  isReviewed           Boolean               @default(false)
+  metadataJson         Json?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document             Document?             @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  importBatch          ImportBatch?          @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  fingerprint          TransactionFingerprint? @relation(fields: [fingerprintId], references: [id], onDelete: SetNull)
+
+  @@index([userId, taxYear, date])
+  @@index([userId, taxYear, categoryCode])
+}
+
+model DeductionItem {
+  id                String   @id @default(uuid())
+  userId            String
+  taxYear           Int
+  code              String
+  label             String
+  amount            Decimal  @db.Decimal(12, 2)
+  isConfirmed       Boolean  @default(false)
+  sourceTransactionId String?
+  metadataJson      Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, taxYear, code])
+}
+
+model ComputationRun {
+  id                    String                  @id @default(uuid())
+  userId                String
+  taxYear               Int
+  runStatus             JobStatus               @default(COMPLETED)
+  scopeStatus           ScopeStatus
+  rulesetFederalVersion String
+  rulesetStateVersion   String
+  totalsJson            Json
+  explanationJson       Json
+  inputsSnapshotJson    Json
+  completenessScore     Int
+  confidenceScore       Int
+  createdAt             DateTime                @default(now())
+  user                  User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assumptions           ComputationAssumption[]
+  confidenceReport      ConfidenceReport?
+  riskFlags             RiskFlag[]
+
+  @@index([userId, taxYear, createdAt])
+}
+
+model AuditEvent {
+  id            String   @id @default(uuid())
+  userId        String?
+  actorType     String
+  actorId       String?
+  action        String
+  entityType    String
+  entityId      String?
+  requestId     String?
+  payloadJson   Json?
+  createdAt     DateTime @default(now())
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model TaxCategory {
+  code             String  @id
+  name             String
+  deductible       Boolean @default(false)
+  supported        Boolean @default(true)
+  limitConfigJson  Json?
+  formTargetsJson  Json
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model CategoryMappingRule {
+  id                String   @id @default(uuid())
+  code              String
+  vendorPattern     String?
+  keywordPattern    String?
+  amountMin         Decimal? @db.Decimal(12, 2)
+  amountMax         Decimal? @db.Decimal(12, 2)
+  confidenceBase    Decimal  @db.Decimal(5, 2)
+  reason            String
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model ComputationAssumption {
+  id               String   @id @default(uuid())
+  runId            String
+  code             String
+  description      String
+  impactLevel      Severity
+  userActionNeeded Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  run              ComputationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+}
+
+model CompletenessReport {
+  id              String   @id @default(uuid())
+  userId          String
+  taxYear         Int
+  score           Int
+  missingItemsJson Json
+  gapsJson        Json
+  actionsJson     Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, taxYear])
+}
+
+model ConfidenceReport {
+  id           String   @id @default(uuid())
+  runId        String   @unique
+  score        Int
+  driversJson  Json
+  createdAt    DateTime @default(now())
+  run          ComputationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+}
+
+model ImportBatch {
+  id           String      @id @default(uuid())
+  userId       String
+  taxYear      Int
+  source       String
+  status       BatchStatus @default(PENDING)
+  summaryJson  Json?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([userId, taxYear, createdAt])
+}
+
+model EstimatedPayment {
+  id          String      @id @default(uuid())
+  userId      String
+  taxYear     Int
+  kind        PaymentKind @default(ESTIMATED_QUARTERLY)
+  quarter     Int?
+  amount      Decimal     @db.Decimal(12, 2)
+  paidAt      DateTime
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, taxYear, paidAt])
+}
+
+model TransactionFingerprint {
+  id          String   @id @default(uuid())
+  fingerprint String   @unique
+  createdAt   DateTime @default(now())
+  transactions Transaction[]
+}
+
+model UserOverride {
+  id                String   @id @default(uuid())
+  userId            String
+  vendorPattern     String?
+  keywordPattern    String?
+  categoryOverride  String
+  createdAt         DateTime @default(now())
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, categoryOverride])
+}
+
+model RiskFlag {
+  id             String   @id @default(uuid())
+  runId          String
+  code           String
+  severity       Severity
+  explanation    String
+  evidenceJson   Json?
+  suggestedFix   String
+  createdAt      DateTime @default(now())
+  run            ComputationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, severity])
+}
+
+model ExportJob {
+  id           String    @id @default(uuid())
+  userId       String
+  taxYear      Int
+  status       JobStatus @default(PENDING)
+  artifactKey  String?
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, taxYear, status])
+}
+
+model IdempotencyRecord {
+  id            String            @id @default(uuid())
+  userId        String
+  method        String
+  route         String
+  idempotencyKey String
+  payloadHash   String
+  status        IdempotencyStatus @default(PROCESSING)
+  responseCode  Int?
+  responseJson  Json?
+  expiresAt     DateTime
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, method, route, idempotencyKey])
+  @@index([expiresAt, status])
+}

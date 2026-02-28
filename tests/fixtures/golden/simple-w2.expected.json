@@ -1,0 +1,5 @@
+{
+  "summary": "Single filer W-2 example with standard deduction",
+  "expectedFederalTax": 10509,
+  "expectedTaxableIncomeFederal": 73450
+}
