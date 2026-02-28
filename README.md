@@ -741,6 +741,8 @@ Important variables:
 
 Development defaults exist in `env.ts`. Production environments should override all secrets and storage settings explicitly.
 
+On Render, `S3_ENDPOINT` must point to the public URL of the storage service because document uploads use presigned URLs that the client must reach directly.
+
 ## Local Development
 
 Requirements:
@@ -781,6 +783,51 @@ Local infrastructure:
 - [`docker-compose.yml`](docker-compose.yml) starts PostgreSQL 16, Redis 7, and MinIO
 - [`prisma/seed.ts`](prisma/seed.ts) seeds `TaxCategory` and `CategoryMappingRule`
 
+## Deploy On Render
+
+The repository includes [`render.yaml`](render.yaml), which provisions:
+
+- one Node web service for the API
+- one Node background worker
+- one managed PostgreSQL database
+- one managed Redis instance
+- one public MinIO service with a persistent disk for S3-compatible object storage
+
+The API service runs:
+
+- `npm ci && npm run build` during build
+- `npm run render:predeploy` before deploy
+- `npm run start` at runtime
+
+The predeploy step runs the committed Prisma migrations and reseeds the baseline tax categories:
+
+```bash
+npm run prisma:migrate:deploy
+npm run prisma:seed
+```
+
+The worker uses the same build artifact and starts with:
+
+```bash
+npm run start:worker
+```
+
+Render-specific notes:
+
+- the API health check is `GET /health`
+- MinIO is exposed as a public web service because the backend returns presigned upload and download URLs to clients
+- PDF tax-pack exports now use object storage when S3 is configured, so they no longer depend on the web service filesystem
+- if `S3_ENDPOINT` is empty, the backend still boots, but document upload/download endpoints return `503` and exports fall back to local disk
+
+First deploy flow:
+
+1. Create the stack from [`render.yaml`](render.yaml).
+2. Wait for the `fiscalnd-storage` service to receive its public `.onrender.com` URL.
+3. In the `fiscalnd-api` service, set `S3_ENDPOINT` to that public MinIO URL, for example `https://fiscalnd-storage.onrender.com`.
+4. Redeploy `fiscalnd-api`. The worker inherits the same `S3_ENDPOINT` value from the API service.
+
+If you prefer AWS S3, Cloudflare R2, or another external S3-compatible provider, keep the API and worker services and replace the MinIO-specific S3 variables with that provider's endpoint, bucket, region, and credentials.
+
 ## Testing
 
 Test files:
@@ -820,7 +867,6 @@ Notes:
 - recurring worker scheduling is not configured yet
 - there is no internal admin dashboard
 - HTTP integration tests depend on local infrastructure
-- the repository still needs an initial committed Prisma migration
 
 ## Near-Term Work
 
@@ -864,5 +910,6 @@ This repository already includes:
 - signed document upload/download flows
 - PDF export
 - audit logging
+- a Render blueprint for API, worker, database, Redis, and object storage
 
 The main remaining product work is around OCR, deeper operational hardening, broader integration coverage, and production infrastructure policies.

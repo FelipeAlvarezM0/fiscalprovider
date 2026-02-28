@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { prisma } from "../infrastructure/prisma.js";
+import { getObjectBuffer, isObjectStorageConfigured, putObjectBuffer } from "../infrastructure/s3.js";
 import { computeTaxYear } from "./tax-service.js";
 import { auditActions, writeAuditEvent } from "./audit-service.js";
 
@@ -70,6 +71,47 @@ function buildPdf(lines: string[]): Buffer {
   return Buffer.from(body, "utf8");
 }
 
+function buildExportArtifactKey(userId: string, exportId: string) {
+  return `exports/${userId}/${exportId}.pdf`;
+}
+
+async function persistExportArtifact(input: {
+  userId: string;
+  exportId: string;
+  buffer: Buffer;
+}) {
+  const artifactKey = buildExportArtifactKey(input.userId, input.exportId);
+
+  if (isObjectStorageConfigured()) {
+    await putObjectBuffer({
+      key: artifactKey,
+      body: input.buffer,
+      contentType: "application/pdf",
+      metadata: {
+        owneruserid: input.userId,
+        exportid: input.exportId
+      }
+    });
+
+    return artifactKey;
+  }
+
+  await mkdir(EXPORTS_DIR, { recursive: true });
+  const fallbackArtifactKey = path.join("generated", "exports", `${input.exportId}.pdf`);
+  const artifactPath = path.resolve(process.cwd(), fallbackArtifactKey);
+  await writeFile(artifactPath, input.buffer);
+  return fallbackArtifactKey;
+}
+
+async function loadExportArtifact(artifactKey: string) {
+  if (!artifactKey.startsWith("generated")) {
+    return getObjectBuffer(artifactKey);
+  }
+
+  const artifactPath = path.resolve(process.cwd(), artifactKey);
+  return readFile(artifactPath);
+}
+
 export async function createTaxPackExport(userId: string, taxYear: number, requestId?: string) {
   const computeResult = await computeTaxYear(userId, taxYear, requestId);
   const exportJob = await prisma.exportJob.create({
@@ -124,10 +166,11 @@ export async function createTaxPackExport(userId: string, taxYear: number, reque
     }
   }
 
-  await mkdir(EXPORTS_DIR, { recursive: true });
-  const artifactKey = path.join("generated", "exports", `${exportJob.id}.pdf`);
-  const artifactPath = path.resolve(process.cwd(), artifactKey);
-  await writeFile(artifactPath, buildPdf(lines));
+  const artifactKey = await persistExportArtifact({
+    userId,
+    exportId: exportJob.id,
+    buffer: buildPdf(lines)
+  });
 
   const completedJob = await prisma.exportJob.update({
     where: {
@@ -169,8 +212,7 @@ export async function getExportDownload(userId: string, exportId: string) {
     return null;
   }
 
-  const artifactPath = path.resolve(process.cwd(), exportJob.artifactKey);
-  const buffer = await readFile(artifactPath);
+  const buffer = await loadExportArtifact(exportJob.artifactKey);
 
   return {
     exportJob,

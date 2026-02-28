@@ -1,0 +1,171 @@
+services:
+  - type: keyvalue
+    name: fiscalnd-redis
+    plan: starter
+    ipAllowList: []
+
+  - type: web
+    name: fiscalnd-storage
+    runtime: docker
+    dockerfilePath: ./render/minio.Dockerfile
+    plan: starter
+    healthCheckPath: /minio/health/live
+    disk:
+      name: fiscalnd-storage-data
+      mountPath: /data
+      sizeGB: 10
+    envVars:
+      - key: MINIO_ROOT_USER
+        generateValue: true
+      - key: MINIO_ROOT_PASSWORD
+        generateValue: true
+      - key: MINIO_BROWSER
+        value: "off"
+
+  - type: web
+    name: fiscalnd-api
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build
+    preDeployCommand: npm run render:predeploy
+    startCommand: npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fiscalnd-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: fiscalnd-redis
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_TTL
+        value: 15m
+      - key: JWT_REFRESH_TTL
+        value: 30d
+      - key: DEFAULT_RULESET_IRS
+        value: IRS-2026.1
+      - key: DEFAULT_RULESET_ND
+        value: ND-2026.2
+      - key: RULESET_SIGNING_SECRET
+        generateValue: true
+      - key: KMS_KEY_ID
+        value: render-managed-key
+      - key: DOCUMENT_MAX_SIZE_BYTES
+        value: "10485760"
+      - key: DOCUMENT_ALLOWED_MIME_TYPES
+        value: application/pdf,image/jpeg,image/png,text/csv
+      - key: S3_BUCKET
+        value: fiscalnd-documents
+      - key: S3_REGION
+        value: us-east-1
+      - key: S3_FORCE_PATH_STYLE
+        value: "true"
+      - key: S3_SIGNED_UPLOAD_TTL_SECONDS
+        value: "300"
+      - key: S3_SIGNED_DOWNLOAD_TTL_SECONDS
+        value: "120"
+      - key: S3_ACCESS_KEY
+        fromService:
+          type: web
+          name: fiscalnd-storage
+          envVarKey: MINIO_ROOT_USER
+      - key: S3_SECRET_KEY
+        fromService:
+          type: web
+          name: fiscalnd-storage
+          envVarKey: MINIO_ROOT_PASSWORD
+      - key: S3_ENDPOINT
+        sync: false
+        value: ""
+
+  - type: worker
+    name: fiscalnd-worker
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start:worker
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fiscalnd-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: fiscalnd-redis
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        fromService:
+          type: web
+          name: fiscalnd-api
+          envVarKey: JWT_ACCESS_SECRET
+      - key: JWT_REFRESH_SECRET
+        fromService:
+          type: web
+          name: fiscalnd-api
+          envVarKey: JWT_REFRESH_SECRET
+      - key: JWT_ACCESS_TTL
+        value: 15m
+      - key: JWT_REFRESH_TTL
+        value: 30d
+      - key: DEFAULT_RULESET_IRS
+        value: IRS-2026.1
+      - key: DEFAULT_RULESET_ND
+        value: ND-2026.2
+      - key: RULESET_SIGNING_SECRET
+        fromService:
+          type: web
+          name: fiscalnd-api
+          envVarKey: RULESET_SIGNING_SECRET
+      - key: KMS_KEY_ID
+        value: render-managed-key
+      - key: DOCUMENT_MAX_SIZE_BYTES
+        value: "10485760"
+      - key: DOCUMENT_ALLOWED_MIME_TYPES
+        value: application/pdf,image/jpeg,image/png,text/csv
+      - key: S3_BUCKET
+        value: fiscalnd-documents
+      - key: S3_REGION
+        value: us-east-1
+      - key: S3_FORCE_PATH_STYLE
+        value: "true"
+      - key: S3_SIGNED_UPLOAD_TTL_SECONDS
+        value: "300"
+      - key: S3_SIGNED_DOWNLOAD_TTL_SECONDS
+        value: "120"
+      - key: S3_ACCESS_KEY
+        fromService:
+          type: web
+          name: fiscalnd-storage
+          envVarKey: MINIO_ROOT_USER
+      - key: S3_SECRET_KEY
+        fromService:
+          type: web
+          name: fiscalnd-storage
+          envVarKey: MINIO_ROOT_PASSWORD
+      - key: S3_ENDPOINT
+        fromService:
+          type: web
+          name: fiscalnd-api
+          envVarKey: S3_ENDPOINT
+
+databases:
+  - name: fiscalnd-db
+    databaseName: fiscal_nd
+    user: fiscal_nd
+    plan: starter
+    ipAllowList: []

@@ -1,5 +1,10 @@
 import { env } from "../config/env.js";
-import { createSignedDownloadUrl, createSignedUploadUrl, headDocumentObject } from "../infrastructure/s3.js";
+import {
+  createSignedDownloadUrl,
+  createSignedUploadUrl,
+  headDocumentObject,
+  isObjectStorageConfigured
+} from "../infrastructure/s3.js";
 import { prisma } from "../infrastructure/prisma.js";
 import { createId } from "../shared/ids.js";
 import { auditActions, writeAuditEvent } from "./audit-service.js";
@@ -23,6 +28,13 @@ function validationError(message: string, details?: Record<string, unknown>): Er
   return error;
 }
 
+function serviceUnavailableError(message: string): Error & { statusCode: number; code: string } {
+  const error = new Error(message) as Error & { statusCode: number; code: string };
+  error.statusCode = 503;
+  error.code = "SERVICE_UNAVAILABLE";
+  return error;
+}
+
 function buildStorageKey(userId: string, fileName: string) {
   const sanitized = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
   return `documents/${userId}/${createId()}-${sanitized}`;
@@ -33,6 +45,10 @@ export async function createUploadUrl(
   input: { taxYear: number; fileName: string; mimeType: string; sizeBytes: number; checksum: string },
   requestId?: string
 ) {
+  if (!isObjectStorageConfigured()) {
+    throw serviceUnavailableError("Document storage is not configured.");
+  }
+
   if (!env.DOCUMENT_ALLOWED_MIME_TYPES.includes(input.mimeType)) {
     throw validationError("MIME type is not allowed for document uploads.", {
       mimeType: input.mimeType,
@@ -86,6 +102,10 @@ export async function createUploadUrl(
 }
 
 export async function confirmUpload(userId: string, input: { documentId: string }, requestId?: string) {
+  if (!isObjectStorageConfigured()) {
+    throw serviceUnavailableError("Document storage is not configured.");
+  }
+
   const existing = await prisma.document.findFirst({
     where: {
       id: input.documentId,
@@ -182,7 +202,9 @@ export async function getDocument(userId: string, documentId: string) {
   }
 
   const downloadUrl =
-    document.status === "AVAILABLE" ? await createSignedDownloadUrl(document.storageKey) : null;
+    document.status === "AVAILABLE" && isObjectStorageConfigured()
+      ? await createSignedDownloadUrl(document.storageKey)
+      : null;
 
   return {
     ...document,
