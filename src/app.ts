@@ -1,3 +1,4 @@
+import cors from "@fastify/cors";
 import fastifyJwt from "@fastify/jwt";
 import fastifyMultipart from "@fastify/multipart";
 import fastifyRateLimit from "@fastify/rate-limit";
@@ -104,6 +105,12 @@ export async function buildApp() {
   });
 
   await app.register(sensible);
+  await app.register(cors, {
+    origin: env.CORS_ORIGINS.includes("*") ? true : env.CORS_ORIGINS,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
+    credentials: false
+  });
   await app.register(fastifyRateLimit, {
     max: 200,
     timeWindow: "1 minute"

@@ -720,6 +720,7 @@ Important variables:
 - `HOST`
 - `DATABASE_URL`
 - `REDIS_URL`
+- `CORS_ORIGINS`
 - `JWT_ACCESS_SECRET`
 - `JWT_REFRESH_SECRET`
 - `JWT_ACCESS_TTL`
@@ -742,6 +743,8 @@ Important variables:
 Development defaults exist in `env.ts`. Production environments should override all secrets and storage settings explicitly.
 
 On Render, `S3_ENDPOINT` must point to the public URL of the storage service because document uploads use presigned URLs that the client must reach directly.
+
+For browser clients, `CORS_ORIGINS` must include the exact frontend origin, for example `https://your-frontend.onrender.com`.
 
 ## Local Development
 
@@ -827,6 +830,31 @@ First deploy flow:
 4. Redeploy `fiscalnd-api`. The worker inherits the same `S3_ENDPOINT` value from the API service.
 
 If you prefer AWS S3, Cloudflare R2, or another external S3-compatible provider, keep the API and worker services and replace the MinIO-specific S3 variables with that provider's endpoint, bucket, region, and credentials.
+
+## Frontend Integration
+
+The deployed API base URL is the Render web service URL plus `/v1`.
+
+Example:
+
+```text
+https://fiscalnd-api.onrender.com/v1
+```
+
+Browser clients must be allowed in `CORS_ORIGINS`.
+
+Example Render value:
+
+```text
+CORS_ORIGINS=https://your-frontend.onrender.com,http://localhost:3000,http://localhost:5173
+```
+
+Frontend requests should follow these rules:
+
+- send `Authorization: Bearer <accessToken>` on protected routes
+- send `Content-Type: application/json` for JSON requests
+- send `Idempotency-Key: <unique-value>` on `POST /incomes`, `POST /transactions`, `POST /documents/confirm`, and `POST /tax/compute`
+- call `POST /v1/auth/login` or `POST /v1/auth/register` first and persist the returned tokens client-side
 
 ## Testing
 

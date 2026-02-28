@@ -13,6 +13,10 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(16).default("local-development-refresh-secret"),
   JWT_ACCESS_TTL: z.string().default("15m"),
   JWT_REFRESH_TTL: z.string().default("30d"),
+  CORS_ORIGINS: z
+    .string()
+    .default("http://localhost:3000,http://localhost:5173,http://127.0.0.1:5173")
+    .transform((value) => value.split(",").map((item) => item.trim()).filter(Boolean)),
   DEFAULT_RULESET_IRS: z.string().default("IRS-2026.1"),
   DEFAULT_RULESET_ND: z.string().default("ND-2026.2"),
   S3_BUCKET: z.string().optional(),
