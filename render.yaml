@@ -26,7 +26,7 @@ services:
     name: fiscalnd-api
     runtime: node
     plan: starter
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci --include=dev && npm run build
     preDeployCommand: npm run render:predeploy
     startCommand: npm run start
     healthCheckPath: /health
@@ -92,7 +92,7 @@ services:
     name: fiscalnd-worker
     runtime: node
     plan: starter
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm run start:worker
     envVars:
       - key: NODE_ENV
